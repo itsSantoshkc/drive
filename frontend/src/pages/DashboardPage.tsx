@@ -40,6 +40,7 @@ import {
 import { useAppDispatch, useAppSelector } from "../hooks/useRedux";
 import { toggleTheme } from "../store/slices/themeSlice";
 import { setViewMode } from "../store/slices/viewSlice";
+import { logout } from "../store/slices/authSlice";
 
 type SortBy = "name" | "date" | "size";
 type FilterType = "all" | "folders" | "images" | "videos" | "audio" | "documents";
@@ -107,6 +108,7 @@ export default function DashboardPage() {
   const dispatch = useAppDispatch();
   const viewMode = useAppSelector((state) => state.view.mode);
   const theme = useAppSelector((state) => state.theme.mode);
+  const authUser = useAppSelector((state) => state.auth.user);
   const [files, setFiles] = useState<FileItem[]>(initialFiles);
   const [trashedFiles, setTrashedFiles] = useState<FileItem[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -131,12 +133,12 @@ export default function DashboardPage() {
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Mock user data
-  const user = {
-    name: "John Doe",
-    email: "john.doe@example.com",
+  // Use user data from Redux store
+  const user = authUser || {
+    name: "Guest",
+    email: "guest@example.com",
     avatar: null as string | null,
-    initials: "JD",
+    initials: "G",
   };
 
   // Close dropdowns on outside click
@@ -690,7 +692,7 @@ export default function DashboardPage() {
                   <div className={`border-t ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`}>
                     <button
                       onClick={() => {
-                        // Handle logout
+                        dispatch(logout());
                         window.location.href = "/login";
                       }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"

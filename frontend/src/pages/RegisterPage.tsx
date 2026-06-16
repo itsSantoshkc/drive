@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Mail, Lock, User, Sun, Moon } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "../hooks/useRedux";
+import { login } from "../store/slices/authSlice";
+import { toggleTheme } from "../store/slices/themeSlice";
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -18,6 +21,9 @@ export default function RegisterPage() {
     confirmPassword?: string;
   }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const theme = useAppSelector((state) => state.theme.mode);
 
   const validate = () => {
     const newErrors: typeof errors = {};
@@ -43,7 +49,23 @@ export default function RegisterPage() {
     e.preventDefault();
     if (validate()) {
       setIsLoading(true);
-      setTimeout(() => setIsLoading(false), 2000);
+      setTimeout(() => {
+        const initials = formData.name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
+        const user = {
+          id: "1",
+          name: formData.name,
+          email: formData.email,
+          initials,
+        };
+        dispatch(login(user));
+        setIsLoading(false);
+        navigate("/dashboard");
+      }, 1000);
     }
   };
 
@@ -65,26 +87,40 @@ export default function RegisterPage() {
   const strength = getPasswordStrength();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-8">
+    <div className={`min-h-screen flex items-center justify-center px-4 py-8 ${
+      theme === "dark" ? "bg-slate-900" : "bg-gradient-to-br from-slate-50 to-slate-100"
+    }`}>
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
+        <div className={`rounded-2xl shadow-xl p-8 border ${
+          theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+        }`}>
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => dispatch(toggleTheme())}
+              className={`p-2 rounded-lg transition-colors ${
+                theme === "dark" ? "bg-slate-700 text-yellow-400 hover:bg-slate-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+          </div>
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
               Create an account
             </h1>
-            <p className="text-slate-500 mt-2">Start your journey with us</p>
+            <p className={`mt-2 ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Start your journey with us</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
+                className={`block text-sm font-medium mb-1.5 ${theme === "dark" ? "text-slate-300" : "text-slate-700"}`}
               >
                 Full name
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <User className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />
                 <input
                   id="name"
                   type="text"
@@ -93,8 +129,8 @@ export default function RegisterPage() {
                     setFormData({ ...formData, name: e.target.value })
                   }
                   className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${
-                    errors.name ? "border-red-500" : "border-slate-300"
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
+                    errors.name ? "border-red-500" : theme === "dark" ? "border-slate-600" : "border-slate-300"
+                  } ${theme === "dark" ? "bg-slate-700 text-white placeholder-slate-400" : ""} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
                   placeholder="John Doe"
                 />
               </div>
@@ -106,12 +142,12 @@ export default function RegisterPage() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
+                className={`block text-sm font-medium mb-1.5 ${theme === "dark" ? "text-slate-300" : "text-slate-700"}`}
               >
                 Email address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />
                 <input
                   id="email"
                   type="email"
@@ -120,8 +156,8 @@ export default function RegisterPage() {
                     setFormData({ ...formData, email: e.target.value })
                   }
                   className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${
-                    errors.email ? "border-red-500" : "border-slate-300"
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
+                    errors.email ? "border-red-500" : theme === "dark" ? "border-slate-600" : "border-slate-300"
+                  } ${theme === "dark" ? "bg-slate-700 text-white placeholder-slate-400" : ""} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
                   placeholder="you@example.com"
                 />
               </div>
@@ -133,12 +169,12 @@ export default function RegisterPage() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
+                className={`block text-sm font-medium mb-1.5 ${theme === "dark" ? "text-slate-300" : "text-slate-700"}`}
               >
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -147,14 +183,14 @@ export default function RegisterPage() {
                     setFormData({ ...formData, password: e.target.value })
                   }
                   className={`w-full pl-10 pr-12 py-2.5 rounded-lg border ${
-                    errors.password ? "border-red-500" : "border-slate-300"
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
+                    errors.password ? "border-red-500" : theme === "dark" ? "border-slate-600" : "border-slate-300"
+                  } ${theme === "dark" ? "bg-slate-700 text-white placeholder-slate-400" : ""} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
                   placeholder="Create a password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 ${theme === "dark" ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"}`}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -170,12 +206,12 @@ export default function RegisterPage() {
                       <div
                         key={i}
                         className={`h-1 flex-1 rounded-full ${
-                          i <= strength.level ? strength.color : "bg-slate-200"
+                          i <= strength.level ? strength.color : theme === "dark" ? "bg-slate-600" : "bg-slate-200"
                         }`}
                       />
                     ))}
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className={`mt-1 text-xs ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
                     {strength.label}
                   </p>
                 </div>
@@ -188,12 +224,12 @@ export default function RegisterPage() {
             <div>
               <label
                 htmlFor="confirmPassword"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
+                className={`block text-sm font-medium mb-1.5 ${theme === "dark" ? "text-slate-300" : "text-slate-700"}`}
               >
                 Confirm password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />
                 <input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
@@ -207,14 +243,14 @@ export default function RegisterPage() {
                   className={`w-full pl-10 pr-12 py-2.5 rounded-lg border ${
                     errors.confirmPassword
                       ? "border-red-500"
-                      : "border-slate-300"
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
+                      : theme === "dark" ? "border-slate-600" : "border-slate-300"
+                  } ${theme === "dark" ? "bg-slate-700 text-white placeholder-slate-400" : ""} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
                   placeholder="Confirm your password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 ${theme === "dark" ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"}`}
                 >
                   {showConfirmPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -236,7 +272,7 @@ export default function RegisterPage() {
                 id="terms"
                 className="mt-1 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
-              <label htmlFor="terms" className="text-sm text-slate-600">
+              <label htmlFor="terms" className={`text-sm ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>
                 I agree to the{" "}
                 <a
                   href="#"
@@ -264,18 +300,20 @@ export default function RegisterPage() {
           </form>
 
           <div className="mt-6 relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
+            <div className={`absolute inset-0 flex items-center`}>
+              <div className={`w-full border-t ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`}></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-slate-500">
+              <span className={`px-4 ${theme === "dark" ? "bg-slate-800 text-slate-400" : "bg-white text-slate-500"}`}>
                 or continue with
               </span>
             </div>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <button className="py-2.5 px-4 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 text-slate-700 font-medium">
+            <button className={`py-2.5 px-4 border rounded-lg transition-colors flex items-center justify-center gap-2 font-medium ${
+              theme === "dark" ? "border-slate-600 text-slate-300 hover:bg-slate-700" : "border-slate-300 text-slate-700 hover:bg-slate-50"
+            }`}>
               <svg className="h-5 w-5" viewBox="0 0 24 24">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -296,7 +334,9 @@ export default function RegisterPage() {
               </svg>
               Google
             </button>
-            <button className="py-2.5 px-4 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 text-slate-700 font-medium">
+            <button className={`py-2.5 px-4 border rounded-lg transition-colors flex items-center justify-center gap-2 font-medium ${
+              theme === "dark" ? "border-slate-600 text-slate-300 hover:bg-slate-700" : "border-slate-300 text-slate-700 hover:bg-slate-50"
+            }`}>
               <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
               </svg>
@@ -304,7 +344,7 @@ export default function RegisterPage() {
             </button>
           </div>
 
-          <p className="mt-8 text-center text-sm text-slate-500">
+          <p className={`mt-8 text-center text-sm ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
             Already have an account?{" "}
             <Link
               to="/login"
