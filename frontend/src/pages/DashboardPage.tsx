@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Home,
   FileImage,
@@ -30,12 +30,16 @@ import {
   Sun,
   Moon,
   ArrowLeft,
+  Check,
+  RotateCcw,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../hooks/useRedux";
 import { toggleTheme } from "../store/slices/themeSlice";
 import { setViewMode } from "../store/slices/viewSlice";
 
 type SortBy = "name" | "date" | "size";
+type FilterType = "all" | "folders" | "images" | "videos" | "audio" | "documents";
+type SidebarView = "my-drive" | "recent" | "starred" | "trash";
 
 interface FileItem {
   id: string;
@@ -88,13 +92,6 @@ const initialFiles: FileItem[] = [
   { id: "41", name: "meeting-notes.txt", type: "file", fileType: "other", size: "8 KB", modified: "2024-01-21", starred: false, shared: false, parentId: "20" },
 ];
 
-const sidebarItems = [
-  { icon: Home, label: "My Drive", count: 12 },
-  { icon: Clock, label: "Recent", count: 5 },
-  { icon: Star, label: "Starred", count: 4 },
-  { icon: Trash2, label: "Trash", count: 0 },
-];
-
 const storageItems = [
   { icon: FileImage, label: "Images", size: "2.4 GB", color: "text-green-500" },
   { icon: FileVideo, label: "Videos", size: "8.1 GB", color: "text-purple-500" },
@@ -107,9 +104,12 @@ export default function DashboardPage() {
   const viewMode = useAppSelector((state) => state.view.mode);
   const theme = useAppSelector((state) => state.theme.mode);
   const [files, setFiles] = useState<FileItem[]>(initialFiles);
+  const [trashedFiles, setTrashedFiles] = useState<FileItem[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [sidebarView, setSidebarView] = useState<SidebarView>("my-drive");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("name");
+  const [filterType, setFilterType] = useState<FilterType>("all");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
@@ -120,6 +120,24 @@ export default function DashboardPage() {
   const [draggedItem, setDraggedItem] = useState<FileItem | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const [isDraggingOverEmpty, setIsDraggingOverEmpty] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setShowSortDropdown(false);
+      }
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
+        setShowFilterDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Build breadcrumb path
   const breadcrumbPath = useMemo(() => {
@@ -140,19 +158,61 @@ export default function DashboardPage() {
     return path;
   }, [currentFolderId, files]);
 
-  // Get current folder contents
+  // Get current folder contents based on sidebar view
   const currentFiles = useMemo(() => {
-    let filtered = files.filter((f) => f.parentId === currentFolderId);
-    
-    if (searchQuery) {
-      filtered = files.filter((f) =>
-        f.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    let filtered: FileItem[] = [];
+
+    // Base filtering by sidebar view
+    switch (sidebarView) {
+      case "my-drive":
+        if (searchQuery) {
+          filtered = files.filter((f) =>
+            f.name.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        } else {
+          filtered = files.filter((f) => f.parentId === currentFolderId);
+        }
+        break;
+      case "recent":
+        filtered = [...files]
+          .filter((f) => f.type === "file")
+          .sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
+          .slice(0, 10);
+        break;
+      case "starred":
+        filtered = files.filter((f) => f.starred);
+        break;
+      case "trash":
+        filtered = trashedFiles;
+        break;
     }
-    
+
+    // Apply type filter
+    if (filterType !== "all" && sidebarView === "my-drive") {
+      filtered = filtered.filter((f) => {
+        switch (filterType) {
+          case "folders":
+            return f.type === "folder";
+          case "images":
+            return f.fileType === "image";
+          case "videos":
+            return f.fileType === "video";
+          case "audio":
+            return f.fileType === "audio";
+          case "documents":
+            return f.fileType === "document";
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Apply sorting
     return filtered.sort((a, b) => {
-      if (a.type === "folder" && b.type !== "folder") return -1;
-      if (a.type !== "folder" && b.type === "folder") return 1;
+      if (sidebarView === "my-drive") {
+        if (a.type === "folder" && b.type !== "folder") return -1;
+        if (a.type !== "folder" && b.type === "folder") return 1;
+      }
       switch (sortBy) {
         case "name":
           return a.name.localeCompare(b.name);
@@ -164,7 +224,7 @@ export default function DashboardPage() {
           return 0;
       }
     });
-  }, [files, currentFolderId, searchQuery, sortBy]);
+  }, [files, trashedFiles, currentFolderId, searchQuery, sortBy, filterType, sidebarView]);
 
   const handleContextMenu = (e: React.MouseEvent, file: FileItem) => {
     e.preventDefault();
@@ -227,8 +287,9 @@ export default function DashboardPage() {
   };
 
   const handleDelete = (file: FileItem) => {
+    // Move to trash instead of permanent delete
+    setTrashedFiles([...trashedFiles, file]);
     if (file.type === "folder") {
-      // Delete folder and all its contents recursively
       const deleteIds = new Set<string>();
       const findChildren = (parentId: string) => {
         files.forEach((f) => {
@@ -243,10 +304,24 @@ export default function DashboardPage() {
       deleteIds.add(file.id);
       findChildren(file.id);
       setFiles(files.filter((f) => !deleteIds.has(f.id)));
+      // Also move children to trash
+      const childFiles = files.filter((f) => deleteIds.has(f.id) && f.id !== file.id);
+      setTrashedFiles([...trashedFiles, ...childFiles, file]);
     } else {
       setFiles(files.filter((f) => f.id !== file.id));
     }
     setSelectedFiles(selectedFiles.filter((id) => id !== file.id));
+    setContextMenu(null);
+  };
+
+  const handleRestore = (file: FileItem) => {
+    setFiles([...files, file]);
+    setTrashedFiles(trashedFiles.filter((f) => f.id !== file.id));
+    setContextMenu(null);
+  };
+
+  const handlePermanentDelete = (file: FileItem) => {
+    setTrashedFiles(trashedFiles.filter((f) => f.id !== file.id));
     setContextMenu(null);
   };
 
@@ -416,18 +491,23 @@ export default function DashboardPage() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
-          {sidebarItems.map((item) => (
+          {[
+            { icon: Home, label: "My Drive", view: "my-drive" as SidebarView, count: files.filter((f) => f.parentId === null).length },
+            { icon: Clock, label: "Recent", view: "recent" as SidebarView, count: 10 },
+            { icon: Star, label: "Starred", view: "starred" as SidebarView, count: files.filter((f) => f.starred).length },
+            { icon: Trash2, label: "Trash", view: "trash" as SidebarView, count: trashedFiles.length },
+          ].map((item) => (
             <button
               key={item.label}
               onClick={() => {
-                if (item.label === "My Drive") {
-                  setCurrentFolderId(null);
-                  setSelectedFiles([]);
-                  setSearchQuery("");
-                }
+                setSidebarView(item.view);
+                setCurrentFolderId(null);
+                setSelectedFiles([]);
+                setSearchQuery("");
+                setFilterType("all");
               }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                item.label === "My Drive" && currentFolderId === null
+                sidebarView === item.view
                   ? "bg-blue-50 text-blue-600 font-medium dark:bg-blue-900/30 dark:text-blue-400"
                   : `${theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"}`
               }`}
@@ -471,12 +551,28 @@ export default function DashboardPage() {
         {/* Header */}
         <header className={`border-b px-6 py-4 ${theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
           <div className="flex items-center gap-4">
-            {currentFolderId && (
+            {sidebarView === "my-drive" && currentFolderId && (
               <button
                 onClick={() => {
                   const parentFolder = files.find((f) => f.id === currentFolderId);
                   setCurrentFolderId(parentFolder?.parentId ?? null);
                   setSelectedFiles([]);
+                }}
+                className={`p-2 rounded-lg transition-colors ${
+                  theme === "dark" ? "bg-slate-700 text-slate-300 hover:bg-slate-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            )}
+            {sidebarView !== "my-drive" && (
+              <button
+                onClick={() => {
+                  setSidebarView("my-drive");
+                  setCurrentFolderId(null);
+                  setSelectedFiles([]);
+                  setSearchQuery("");
+                  setFilterType("all");
                 }}
                 className={`p-2 rounded-lg transition-colors ${
                   theme === "dark" ? "bg-slate-700 text-slate-300 hover:bg-slate-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -518,49 +614,134 @@ export default function DashboardPage() {
 
           {/* Breadcrumb */}
           <div className="flex items-center gap-1 mt-4 flex-wrap">
-            {breadcrumbPath.map((crumb, index) => (
-              <div key={crumb.id ?? "root"} className="flex items-center">
-                {index > 0 && <ChevronRight className={`h-4 w-4 mx-1 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />}
-                <button
-                  onClick={() => handleBreadcrumbClick(crumb.id)}
-                  className={`text-sm px-1 py-0.5 rounded transition-colors ${
-                    index === breadcrumbPath.length - 1
-                      ? `font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`
-                      : `${theme === "dark" ? "text-slate-400 hover:text-slate-200 hover:bg-slate-700" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"}`
-                  }`}
-                >
-                  {crumb.name}
-                </button>
-              </div>
-            ))}
+            {sidebarView === "my-drive" ? (
+              breadcrumbPath.map((crumb, index) => (
+                <div key={crumb.id ?? "root"} className="flex items-center">
+                  {index > 0 && <ChevronRight className={`h-4 w-4 mx-1 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />}
+                  <button
+                    onClick={() => handleBreadcrumbClick(crumb.id)}
+                    className={`text-sm px-1 py-0.5 rounded transition-colors ${
+                      index === breadcrumbPath.length - 1
+                        ? `font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`
+                        : `${theme === "dark" ? "text-slate-400 hover:text-slate-200 hover:bg-slate-700" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"}`
+                    }`}
+                  >
+                    {crumb.name}
+                  </button>
+                </div>
+              ))
+            ) : (
+              <h2 className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
+                {sidebarView === "recent" && "Recent Files"}
+                {sidebarView === "starred" && "Starred Files"}
+                {sidebarView === "trash" && "Trash"}
+              </h2>
+            )}
           </div>
         </header>
 
         {/* Toolbar */}
         <div className={`border-b px-6 py-3 flex items-center justify-between ${theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowCreateFolderModal(true)}
-              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <FolderPlus className="h-4 w-4" />
-              New Folder
-            </button>
-            <button className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"
-            }`}>
-              <Filter className="h-4 w-4" />
-              Filter
-            </button>
-            <button className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"
-            }`}>
-              <SortAsc className="h-4 w-4" />
-              Sort by: {sortBy}
-              <ChevronDown className="h-4 w-4" />
-            </button>
+            {sidebarView === "my-drive" && (
+              <button
+                onClick={() => setShowCreateFolderModal(true)}
+                className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <FolderPlus className="h-4 w-4" />
+                New Folder
+              </button>
+            )}
+            {/* Filter Dropdown */}
+            {sidebarView === "my-drive" && (
+              <div className="relative" ref={filterDropdownRef}>
+                <button
+                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                    filterType !== "all"
+                      ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                      : theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <Filter className="h-4 w-4" />
+                  {filterType === "all" ? "Filter" : filterType.charAt(0).toUpperCase() + filterType.slice(1)}
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+                {showFilterDropdown && (
+                  <div className={`absolute left-0 top-full mt-1 z-50 w-48 rounded-xl shadow-lg border py-1 ${
+                    theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+                  }`}>
+                    {[
+                      { value: "all", label: "All Files", icon: File },
+                      { value: "folders", label: "Folders", icon: Folder },
+                      { value: "images", label: "Images", icon: FileImage },
+                      { value: "videos", label: "Videos", icon: FileVideo },
+                      { value: "audio", label: "Audio", icon: FileAudio },
+                      { value: "documents", label: "Documents", icon: FileText },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        onClick={() => {
+                          setFilterType(item.value as FilterType);
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                          filterType === item.value
+                            ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                            : theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {filterType === item.value && <Check className="h-4 w-4" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Sort Dropdown */}
+            <div className="relative" ref={sortDropdownRef}>
+              <button
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <SortAsc className="h-4 w-4" />
+                Sort by: {sortBy === "name" ? "Name" : sortBy === "date" ? "Date" : "Size"}
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {showSortDropdown && (
+                <div className={`absolute left-0 top-full mt-1 z-50 w-40 rounded-xl shadow-lg border py-1 ${
+                  theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+                }`}>
+                  {[
+                    { value: "name", label: "Name" },
+                    { value: "date", label: "Last modified" },
+                    { value: "size", label: "Size" },
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      onClick={() => {
+                        setSortBy(item.value as SortBy);
+                        setShowSortDropdown(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                        sortBy === item.value
+                          ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                          : theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {sortBy === item.value && <Check className="h-4 w-4" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className={`flex items-center gap-1 rounded-lg p-1 ${theme === "dark" ? "bg-slate-700" : "bg-slate-100"}`}>
             <button
@@ -841,64 +1022,87 @@ export default function DashboardPage() {
             }`}
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
-            {contextMenu.file.type === "folder" && (
-              <button
-                onClick={() => {
-                  handleDoubleClick(contextMenu.file);
-                  setContextMenu(null);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+            {sidebarView === "trash" ? (
+              <>
+                <button
+                  onClick={() => handleRestore(contextMenu.file)}
+                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                    theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Restore
+                </button>
+                <button
+                  onClick={() => handlePermanentDelete(contextMenu.file)}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete permanently
+                </button>
+              </>
+            ) : (
+              <>
+                {contextMenu.file.type === "folder" && (
+                  <button
+                    onClick={() => {
+                      handleDoubleClick(contextMenu.file);
+                      setContextMenu(null);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                      theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <FolderPlus className="h-4 w-4" />
+                    Open
+                  </button>
+                )}
+                <button
+                  onClick={() => toggleStar(contextMenu.file)}
+                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                    theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <Star className={`h-4 w-4 ${contextMenu.file.starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
+                  {contextMenu.file.starred ? "Unstar" : "Star"}
+                </button>
+                <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
                   theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
-                }`}
-              >
-                <FolderPlus className="h-4 w-4" />
-                Open
-              </button>
+                }`}>
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </button>
+                <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                  theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                }`}>
+                  <Download className="h-4 w-4" />
+                  Download
+                </button>
+                <button
+                  onClick={() => startRename(contextMenu.file)}
+                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                    theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Rename
+                </button>
+                <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                  theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                }`}>
+                  <Info className="h-4 w-4" />
+                  Details
+                </button>
+                <div className={`border-t my-1 ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`} />
+                <button
+                  onClick={() => handleDelete(contextMenu.file)}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Move to trash
+                </button>
+              </>
             )}
-            <button
-              onClick={() => toggleStar(contextMenu.file)}
-              className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
-                theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              <Star className={`h-4 w-4 ${contextMenu.file.starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
-              {contextMenu.file.starred ? "Unstar" : "Star"}
-            </button>
-            <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
-              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
-            }`}>
-              <Share2 className="h-4 w-4" />
-              Share
-            </button>
-            <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
-              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
-            }`}>
-              <Download className="h-4 w-4" />
-              Download
-            </button>
-            <button
-              onClick={() => startRename(contextMenu.file)}
-              className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
-                theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              <Pencil className="h-4 w-4" />
-              Rename
-            </button>
-            <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
-              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
-            }`}>
-              <Info className="h-4 w-4" />
-              Details
-            </button>
-            <div className={`border-t my-1 ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`} />
-            <button
-              onClick={() => handleDelete(contextMenu.file)}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </button>
           </div>
         </>
       )}
