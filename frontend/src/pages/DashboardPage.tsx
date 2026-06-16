@@ -27,9 +27,13 @@ import {
   File,
   Filter,
   SortAsc,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "../hooks/useRedux";
+import { toggleTheme } from "../store/slices/themeSlice";
+import { setViewMode } from "../store/slices/viewSlice";
 
-type ViewMode = "grid" | "list";
 type SortBy = "name" | "date" | "size";
 
 interface FileItem {
@@ -74,7 +78,9 @@ const storageItems = [
 ];
 
 export default function DashboardPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const dispatch = useAppDispatch();
+  const viewMode = useAppSelector((state) => state.view.mode);
+  const theme = useAppSelector((state) => state.theme.mode);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("name");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
@@ -133,13 +139,13 @@ export default function DashboardPage() {
   const storagePercentage = (storageUsed / storageTotal) * 100;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className={`min-h-screen flex ${theme === "dark" ? "bg-slate-900" : "bg-slate-50"}`}>
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
-        <div className="p-4 border-b border-slate-200">
+      <aside className={`w-64 flex flex-col ${theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"} border-r`}>
+        <div className={`p-4 border-b ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`}>
           <div className="flex items-center gap-2">
             <HardDrive className="h-8 w-8 text-blue-600" />
-            <span className="text-xl font-bold text-slate-900">Drive</span>
+            <span className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Drive</span>
           </div>
         </div>
 
@@ -149,26 +155,26 @@ export default function DashboardPage() {
               key={item.label}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                 item.active
-                  ? "bg-blue-50 text-blue-600 font-medium"
-                  : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-blue-50 text-blue-600 font-medium dark:bg-blue-900/30 dark:text-blue-400"
+                  : `${theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"}`
               }`}
             >
               <item.icon className="h-5 w-5" />
               <span className="flex-1 text-left">{item.label}</span>
               {item.count > 0 && (
-                <span className="text-xs text-slate-400">{item.count}</span>
+                <span className={`text-xs ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`}>{item.count}</span>
               )}
             </button>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-200">
+        <div className={`p-4 border-t ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`}>
           <div className="mb-3">
             <div className="flex justify-between text-sm mb-1">
-              <span className="text-slate-600">Storage</span>
-              <span className="text-slate-500">{storageUsed} GB / {storageTotal} GB</span>
+              <span className={theme === "dark" ? "text-slate-300" : "text-slate-600"}>Storage</span>
+              <span className={theme === "dark" ? "text-slate-400" : "text-slate-500"}>{storageUsed} GB / {storageTotal} GB</span>
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-2">
+            <div className={`w-full rounded-full h-2 ${theme === "dark" ? "bg-slate-700" : "bg-slate-200"}`}>
               <div
                 className="bg-blue-600 h-2 rounded-full transition-all"
                 style={{ width: `${storagePercentage}%` }}
@@ -179,8 +185,8 @@ export default function DashboardPage() {
             {storageItems.map((item) => (
               <div key={item.label} className="flex items-center gap-2 text-sm">
                 <item.icon className={`h-4 w-4 ${item.color}`} />
-                <span className="text-slate-600">{item.label}</span>
-                <span className="text-slate-400 ml-auto">{item.size}</span>
+                <span className={theme === "dark" ? "text-slate-300" : "text-slate-600"}>{item.label}</span>
+                <span className={`${theme === "dark" ? "text-slate-500" : "text-slate-400"} ml-auto`}>{item.size}</span>
               </div>
             ))}
           </div>
@@ -190,18 +196,28 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-slate-200 px-6 py-4">
+        <header className={`border-b px-6 py-4 ${theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />
               <input
                 type="text"
                 placeholder="Search in Drive"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-100 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+                className={`w-full pl-10 pr-4 py-2.5 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                  theme === "dark" ? "bg-slate-700 text-white placeholder-slate-400 focus:bg-slate-600" : "bg-slate-100 focus:bg-white"
+                }`}
               />
             </div>
+            <button
+              onClick={() => dispatch(toggleTheme())}
+              className={`p-2.5 rounded-lg transition-colors ${
+                theme === "dark" ? "bg-slate-700 text-yellow-400 hover:bg-slate-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
             <button
               onClick={() => setShowUploadModal(true)}
               className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
@@ -215,12 +231,12 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2 mt-4">
             {currentPath.map((path, index) => (
               <div key={index} className="flex items-center gap-2">
-                {index > 0 && <ChevronRight className="h-4 w-4 text-slate-400" />}
+                {index > 0 && <ChevronRight className={`h-4 w-4 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />}
                 <button
                   className={`text-sm ${
                     index === currentPath.length - 1
-                      ? "font-medium text-slate-900"
-                      : "text-slate-500 hover:text-slate-700"
+                      ? `font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`
+                      : `${theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-700"}`
                   }`}
                 >
                   {path}
@@ -231,31 +247,35 @@ export default function DashboardPage() {
         </header>
 
         {/* Toolbar */}
-        <div className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+        <div className={`border-b px-6 py-3 flex items-center justify-between ${theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+            <button className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"
+            }`}>
               <Filter className="h-4 w-4" />
               Filter
             </button>
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+            <button className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"
+            }`}>
               <SortAsc className="h-4 w-4" />
               Sort by: {sortBy}
               <ChevronDown className="h-4 w-4" />
             </button>
           </div>
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+          <div className={`flex items-center gap-1 rounded-lg p-1 ${theme === "dark" ? "bg-slate-700" : "bg-slate-100"}`}>
             <button
-              onClick={() => setViewMode("grid")}
+              onClick={() => dispatch(setViewMode("grid"))}
               className={`p-2 rounded-md transition-colors ${
-                viewMode === "grid" ? "bg-white shadow-sm text-blue-600" : "text-slate-500 hover:text-slate-700"
+                viewMode === "grid" ? "bg-white shadow-sm text-blue-600 dark:bg-slate-600 dark:text-blue-400" : `${theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-700"}`
               }`}
             >
               <Grid3X3 className="h-4 w-4" />
             </button>
             <button
-              onClick={() => setViewMode("list")}
+              onClick={() => dispatch(setViewMode("list"))}
               className={`p-2 rounded-md transition-colors ${
-                viewMode === "list" ? "bg-white shadow-sm text-blue-600" : "text-slate-500 hover:text-slate-700"
+                viewMode === "list" ? "bg-white shadow-sm text-blue-600 dark:bg-slate-600 dark:text-blue-400" : `${theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-700"}`
               }`}
             >
               <List className="h-4 w-4" />
@@ -266,22 +286,24 @@ export default function DashboardPage() {
         {/* File Explorer */}
         <div className="flex-1 overflow-auto p-6">
           {selectedFiles.length > 0 && (
-            <div className="mb-4 flex items-center gap-4 bg-blue-50 rounded-lg px-4 py-3">
-              <span className="text-sm text-blue-700">{selectedFiles.length} selected</span>
+            <div className={`mb-4 flex items-center gap-4 rounded-lg px-4 py-3 ${
+              theme === "dark" ? "bg-blue-900/30" : "bg-blue-50"
+            }`}>
+              <span className={`text-sm ${theme === "dark" ? "text-blue-400" : "text-blue-700"}`}>{selectedFiles.length} selected</span>
               <div className="flex items-center gap-2">
-                <button className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                <button className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "text-blue-400 hover:bg-blue-800/50" : "text-blue-600 hover:bg-blue-100"}`}>
                   <Download className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                <button className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "text-blue-400 hover:bg-blue-800/50" : "text-blue-600 hover:bg-blue-100"}`}>
                   <Share2 className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                <button className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "text-blue-400 hover:bg-blue-800/50" : "text-blue-600 hover:bg-blue-100"}`}>
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
               <button
                 onClick={() => setSelectedFiles([])}
-                className="ml-auto p-1 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                className={`ml-auto p-1 rounded-lg transition-colors ${theme === "dark" ? "text-blue-400 hover:bg-blue-800/50" : "text-blue-600 hover:bg-blue-100"}`}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -295,10 +317,10 @@ export default function DashboardPage() {
                   key={file.id}
                   onContextMenu={(e) => handleContextMenu(e, file)}
                   onClick={() => toggleFileSelection(file.id)}
-                  className={`group relative bg-white rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${
+                  className={`group relative rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${
                     selectedFiles.includes(file.id)
-                      ? "border-blue-500 ring-2 ring-blue-200"
-                      : "border-slate-200 hover:border-slate-300"
+                      ? "border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800"
+                      : `${theme === "dark" ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`
                   }`}
                 >
                   <button
@@ -310,46 +332,46 @@ export default function DashboardPage() {
                   >
                     <Star
                       className={`h-4 w-4 ${
-                        file.starred ? "fill-yellow-400 text-yellow-400" : "text-slate-400 hover:text-yellow-400"
+                        file.starred ? "fill-yellow-400 text-yellow-400" : `${theme === "dark" ? "text-slate-500 hover:text-yellow-400" : "text-slate-400 hover:text-yellow-400"}`
                       }`}
                     />
                   </button>
                   <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-3 ${
-                    file.type === "folder" ? `${file.color} text-white` : "bg-slate-100"
+                    file.type === "folder" ? `${file.color} text-white` : `${theme === "dark" ? "bg-slate-700" : "bg-slate-100"}`
                   }`}>
                     {getFileIcon(file)}
                   </div>
-                  <h3 className="font-medium text-slate-900 truncate">{file.name}</h3>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <h3 className={`font-medium truncate ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{file.name}</h3>
+                  <p className={`text-xs mt-1 ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
                     {file.type === "folder" ? `${Math.floor(Math.random() * 10) + 1} items` : file.size}
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     {file.shared && (
-                      <Share2 className="h-3 w-3 text-slate-400" />
+                      <Share2 className={`h-3 w-3 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />
                     )}
-                    <span className="text-xs text-slate-400">{file.modified}</span>
+                    <span className={`text-xs ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`}>{file.modified}</span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className={`rounded-xl border overflow-hidden ${theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
               <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className={`border-b ${theme === "dark" ? "bg-slate-700/50 border-slate-700" : "bg-slate-50 border-slate-200"}`}>
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    <th className={`text-left px-4 py-3 text-xs font-medium uppercase tracking-wider ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
                       Name
                     </th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider hidden md:table-cell">
+                    <th className={`text-left px-4 py-3 text-xs font-medium uppercase tracking-wider hidden md:table-cell ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
                       Modified
                     </th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider hidden lg:table-cell">
+                    <th className={`text-left px-4 py-3 text-xs font-medium uppercase tracking-wider hidden lg:table-cell ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
                       Size
                     </th>
                     <th className="w-10"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className={`divide-y ${theme === "dark" ? "divide-slate-700" : "divide-slate-200"}`}>
                   {sortedFiles.map((file) => (
                     <tr
                       key={file.id}
@@ -357,14 +379,14 @@ export default function DashboardPage() {
                       onClick={() => toggleFileSelection(file.id)}
                       className={`cursor-pointer transition-colors ${
                         selectedFiles.includes(file.id)
-                          ? "bg-blue-50"
-                          : "hover:bg-slate-50"
+                          ? `${theme === "dark" ? "bg-blue-900/30" : "bg-blue-50"}`
+                          : `${theme === "dark" ? "hover:bg-slate-700/50" : "hover:bg-slate-50"}`
                       }`}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded flex items-center justify-center ${
-                            file.type === "folder" ? `${file.color} text-white` : "bg-slate-100"
+                            file.type === "folder" ? `${file.color} text-white` : `${theme === "dark" ? "bg-slate-700" : "bg-slate-100"}`
                           }`}>
                             {file.type === "folder" ? (
                               <Folder className="h-4 w-4" />
@@ -373,14 +395,14 @@ export default function DashboardPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-slate-900">{file.name}</span>
+                            <span className={`font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{file.name}</span>
                             {file.starred && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
-                            {file.shared && <Share2 className="h-3 w-3 text-slate-400" />}
+                            {file.shared && <Share2 className={`h-3 w-3 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-500 hidden md:table-cell">{file.modified}</td>
-                      <td className="px-4 py-3 text-sm text-slate-500 hidden lg:table-cell">
+                      <td className={`px-4 py-3 text-sm hidden md:table-cell ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>{file.modified}</td>
+                      <td className={`px-4 py-3 text-sm hidden lg:table-cell ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
                         {file.type === "folder" ? "—" : file.size}
                       </td>
                       <td className="px-4 py-3">
@@ -389,7 +411,7 @@ export default function DashboardPage() {
                             e.stopPropagation();
                             handleContextMenu(e, file);
                           }}
-                          className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                          className={`p-1 rounded transition-colors ${theme === "dark" ? "text-slate-500 hover:text-slate-300 hover:bg-slate-700" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"}`}
                         >
                           <MoreVertical className="h-4 w-4" />
                         </button>
@@ -411,31 +433,43 @@ export default function DashboardPage() {
             onClick={() => setContextMenu(null)}
           />
           <div
-            className="fixed z-50 bg-white rounded-xl shadow-lg border border-slate-200 py-2 min-w-[180px]"
+            className={`fixed z-50 rounded-xl shadow-lg border py-2 min-w-[180px] ${
+              theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+            }`}
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
-            <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors">
+            <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+            }`}>
               <FolderPlus className="h-4 w-4" />
               Open
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors">
+            <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+            }`}>
               <Share2 className="h-4 w-4" />
               Share
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors">
+            <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+            }`}>
               <Download className="h-4 w-4" />
               Download
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors">
+            <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+            }`}>
               <Pencil className="h-4 w-4" />
               Rename
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors">
+            <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+            }`}>
               <Info className="h-4 w-4" />
               Details
             </button>
-            <div className="border-t border-slate-200 my-1" />
-            <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+            <div className={`border-t my-1 ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`} />
+            <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
               <Trash2 className="h-4 w-4" />
               Delete
             </button>
@@ -446,27 +480,37 @@ export default function DashboardPage() {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-900">Upload to Drive</h2>
+          <div className={`rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden ${
+            theme === "dark" ? "bg-slate-800" : "bg-white"
+          }`}>
+            <div className={`flex items-center justify-between px-6 py-4 border-b ${
+              theme === "dark" ? "border-slate-700" : "border-slate-200"
+            }`}>
+              <h2 className={`text-lg font-semibold ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Upload to Drive</h2>
               <button
                 onClick={() => setShowUploadModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                className={`p-1 rounded-lg transition-colors ${
+                  theme === "dark" ? "text-slate-400 hover:text-slate-200 hover:bg-slate-700" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                }`}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-6">
-              <div className="border-2 border-dashed border-slate-300 rounded-xl p-12 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer">
-                <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                <p className="text-slate-600 font-medium">Drag & drop files here</p>
-                <p className="text-sm text-slate-500 mt-1">or click to browse</p>
-                <p className="text-xs text-slate-400 mt-4">Maximum file size: 50 MB</p>
+              <div className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer ${
+                theme === "dark" ? "border-slate-600 hover:border-blue-500 hover:bg-blue-900/20" : "border-slate-300 hover:border-blue-400 hover:bg-blue-50"
+              }`}>
+                <Upload className={`h-12 w-12 mx-auto mb-4 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />
+                <p className={`font-medium ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>Drag & drop files here</p>
+                <p className={`text-sm mt-1 ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>or click to browse</p>
+                <p className={`text-xs mt-4 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`}>Maximum file size: 50 MB</p>
               </div>
               <div className="mt-6 flex gap-3">
                 <button
                   onClick={() => setShowUploadModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition-colors"
+                  className={`flex-1 px-4 py-2.5 border rounded-lg font-medium transition-colors ${
+                    theme === "dark" ? "border-slate-600 text-slate-300 hover:bg-slate-700" : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                  }`}
                 >
                   Cancel
                 </button>
