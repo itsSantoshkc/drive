@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Home,
   FileImage,
@@ -29,6 +29,7 @@ import {
   SortAsc,
   Sun,
   Moon,
+  ArrowLeft,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../hooks/useRedux";
 import { toggleTheme } from "../store/slices/themeSlice";
@@ -46,28 +47,52 @@ interface FileItem {
   starred: boolean;
   shared: boolean;
   color?: string;
+  parentId: string | null;
 }
 
-const mockFiles: FileItem[] = [
-  { id: "1", name: "Documents", type: "folder", modified: "2024-01-15", starred: false, shared: false, color: "bg-blue-500" },
-  { id: "2", name: "Images", type: "folder", modified: "2024-01-14", starred: true, shared: true, color: "bg-green-500" },
-  { id: "3", name: "Videos", type: "folder", modified: "2024-01-13", starred: false, shared: false, color: "bg-purple-500" },
-  { id: "4", name: "Music", type: "folder", modified: "2024-01-12", starred: false, shared: false, color: "bg-pink-500" },
-  { id: "5", name: "Projects", type: "folder", modified: "2024-01-11", starred: true, shared: true, color: "bg-orange-500" },
-  { id: "6", name: "presentation.pdf", type: "file", fileType: "document", size: "2.4 MB", modified: "2024-01-10", starred: false, shared: true },
-  { id: "7", name: "photo-001.jpg", type: "file", fileType: "image", size: "3.8 MB", modified: "2024-01-09", starred: true, shared: false },
-  { id: "8", name: "budget.xlsx", type: "file", fileType: "document", size: "156 KB", modified: "2024-01-08", starred: false, shared: false },
-  { id: "9", name: "demo-video.mp4", type: "file", fileType: "video", size: "45.2 MB", modified: "2024-01-07", starred: false, shared: true },
-  { id: "10", name: "notes.txt", type: "file", fileType: "other", size: "12 KB", modified: "2024-01-06", starred: false, shared: false },
-  { id: "11", name: "logo.svg", type: "file", fileType: "image", size: "24 KB", modified: "2024-01-05", starred: true, shared: false },
-  { id: "12", name: "podcast-ep1.mp3", type: "file", fileType: "audio", size: "18.5 MB", modified: "2024-01-04", starred: false, shared: false },
+const folderColors = [
+  "bg-blue-500",
+  "bg-green-500",
+  "bg-purple-500",
+  "bg-pink-500",
+  "bg-orange-500",
+  "bg-teal-500",
+  "bg-indigo-500",
+  "bg-rose-500",
+];
+
+const initialFiles: FileItem[] = [
+  { id: "1", name: "Documents", type: "folder", modified: "2024-01-15", starred: false, shared: false, color: "bg-blue-500", parentId: null },
+  { id: "2", name: "Images", type: "folder", modified: "2024-01-14", starred: true, shared: true, color: "bg-green-500", parentId: null },
+  { id: "3", name: "Videos", type: "folder", modified: "2024-01-13", starred: false, shared: false, color: "bg-purple-500", parentId: null },
+  { id: "4", name: "Music", type: "folder", modified: "2024-01-12", starred: false, shared: false, color: "bg-pink-500", parentId: null },
+  { id: "5", name: "Projects", type: "folder", modified: "2024-01-11", starred: true, shared: true, color: "bg-orange-500", parentId: null },
+  { id: "6", name: "presentation.pdf", type: "file", fileType: "document", size: "2.4 MB", modified: "2024-01-10", starred: false, shared: true, parentId: null },
+  { id: "7", name: "photo-001.jpg", type: "file", fileType: "image", size: "3.8 MB", modified: "2024-01-09", starred: true, shared: false, parentId: null },
+  { id: "8", name: "budget.xlsx", type: "file", fileType: "document", size: "156 KB", modified: "2024-01-08", starred: false, shared: false, parentId: null },
+  { id: "9", name: "demo-video.mp4", type: "file", fileType: "video", size: "45.2 MB", modified: "2024-01-07", starred: false, shared: true, parentId: null },
+  { id: "10", name: "notes.txt", type: "file", fileType: "other", size: "12 KB", modified: "2024-01-06", starred: false, shared: false, parentId: null },
+  { id: "11", name: "logo.svg", type: "file", fileType: "image", size: "24 KB", modified: "2024-01-05", starred: true, shared: false, parentId: null },
+  { id: "12", name: "podcast-ep1.mp3", type: "file", fileType: "audio", size: "18.5 MB", modified: "2024-01-04", starred: false, shared: false, parentId: null },
+  // Documents folder contents
+  { id: "20", name: "Work", type: "folder", modified: "2024-01-20", starred: false, shared: false, color: "bg-indigo-500", parentId: "1" },
+  { id: "21", name: "Personal", type: "folder", modified: "2024-01-19", starred: false, shared: false, color: "bg-teal-500", parentId: "1" },
+  { id: "22", name: "resume.pdf", type: "file", fileType: "document", size: "245 KB", modified: "2024-01-18", starred: true, shared: true, parentId: "1" },
+  { id: "23", name: "cover-letter.docx", type: "file", fileType: "document", size: "56 KB", modified: "2024-01-17", starred: false, shared: false, parentId: "1" },
+  // Images folder contents
+  { id: "30", name: "Vacation", type: "folder", modified: "2024-01-25", starred: true, shared: false, color: "bg-rose-500", parentId: "2" },
+  { id: "31", name: "profile.jpg", type: "file", fileType: "image", size: "2.1 MB", modified: "2024-01-24", starred: false, shared: true, parentId: "2" },
+  { id: "32", name: "banner.png", type: "file", fileType: "image", size: "4.5 MB", modified: "2024-01-23", starred: false, shared: false, parentId: "2" },
+  // Work folder contents
+  { id: "40", name: "report-q4.pdf", type: "file", fileType: "document", size: "1.8 MB", modified: "2024-01-22", starred: true, shared: true, parentId: "20" },
+  { id: "41", name: "meeting-notes.txt", type: "file", fileType: "other", size: "8 KB", modified: "2024-01-21", starred: false, shared: false, parentId: "20" },
 ];
 
 const sidebarItems = [
-  { icon: Home, label: "My Drive", active: true, count: 12 },
-  { icon: Clock, label: "Recent", active: false, count: 5 },
-  { icon: Star, label: "Starred", active: false, count: 4 },
-  { icon: Trash2, label: "Trash", active: false, count: 0 },
+  { icon: Home, label: "My Drive", count: 12 },
+  { icon: Clock, label: "Recent", count: 5 },
+  { icon: Star, label: "Starred", count: 4 },
+  { icon: Trash2, label: "Trash", count: 0 },
 ];
 
 const storageItems = [
@@ -81,34 +106,66 @@ export default function DashboardPage() {
   const dispatch = useAppDispatch();
   const viewMode = useAppSelector((state) => state.view.mode);
   const theme = useAppSelector((state) => state.theme.mode);
+  const [files, setFiles] = useState<FileItem[]>(initialFiles);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("name");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileItem } | null>(null);
-  const [currentPath, setCurrentPath] = useState<string[]>(["My Drive"]);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
-  const filteredFiles = mockFiles.filter((file) =>
-    file.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const sortedFiles = [...filteredFiles].sort((a, b) => {
-    if (a.type === "folder" && b.type !== "folder") return -1;
-    if (a.type !== "folder" && b.type === "folder") return 1;
-    switch (sortBy) {
-      case "name":
-        return a.name.localeCompare(b.name);
-      case "date":
-        return new Date(b.modified).getTime() - new Date(a.modified).getTime();
-      case "size":
-        return 0;
-      default:
-        return 0;
+  // Build breadcrumb path
+  const breadcrumbPath = useMemo(() => {
+    const path: { id: string | null; name: string }[] = [];
+    let folderId: string | null = currentFolderId;
+    
+    while (folderId !== null) {
+      const folder = files.find((f) => f.id === folderId);
+      if (folder) {
+        path.unshift({ id: folder.id, name: folder.name });
+        folderId = folder.parentId;
+      } else {
+        break;
+      }
     }
-  });
+    
+    path.unshift({ id: null, name: "My Drive" });
+    return path;
+  }, [currentFolderId, files]);
+
+  // Get current folder contents
+  const currentFiles = useMemo(() => {
+    let filtered = files.filter((f) => f.parentId === currentFolderId);
+    
+    if (searchQuery) {
+      filtered = files.filter((f) =>
+        f.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    return filtered.sort((a, b) => {
+      if (a.type === "folder" && b.type !== "folder") return -1;
+      if (a.type !== "folder" && b.type === "folder") return 1;
+      switch (sortBy) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "date":
+          return new Date(b.modified).getTime() - new Date(a.modified).getTime();
+        case "size":
+          return 0;
+        default:
+          return 0;
+      }
+    });
+  }, [files, currentFolderId, searchQuery, sortBy]);
 
   const handleContextMenu = (e: React.MouseEvent, file: FileItem) => {
     e.preventDefault();
+    e.stopPropagation();
     setContextMenu({ x: e.clientX, y: e.clientY, file });
   };
 
@@ -134,6 +191,91 @@ export default function DashboardPage() {
     );
   };
 
+  const handleDoubleClick = (file: FileItem) => {
+    if (file.type === "folder") {
+      setCurrentFolderId(file.id);
+      setSelectedFiles([]);
+      setSearchQuery("");
+    }
+  };
+
+  const handleBreadcrumbClick = (folderId: string | null) => {
+    setCurrentFolderId(folderId);
+    setSelectedFiles([]);
+    setSearchQuery("");
+  };
+
+  const handleCreateFolder = () => {
+    if (newFolderName.trim()) {
+      const newFolder: FileItem = {
+        id: `folder-${Date.now()}`,
+        name: newFolderName.trim(),
+        type: "folder",
+        modified: new Date().toISOString().split("T")[0],
+        starred: false,
+        shared: false,
+        color: folderColors[Math.floor(Math.random() * folderColors.length)],
+        parentId: currentFolderId,
+      };
+      setFiles([...files, newFolder]);
+      setNewFolderName("");
+      setShowCreateFolderModal(false);
+    }
+  };
+
+  const handleDelete = (file: FileItem) => {
+    if (file.type === "folder") {
+      // Delete folder and all its contents recursively
+      const deleteIds = new Set<string>();
+      const findChildren = (parentId: string) => {
+        files.forEach((f) => {
+          if (f.parentId === parentId) {
+            deleteIds.add(f.id);
+            if (f.type === "folder") {
+              findChildren(f.id);
+            }
+          }
+        });
+      };
+      deleteIds.add(file.id);
+      findChildren(file.id);
+      setFiles(files.filter((f) => !deleteIds.has(f.id)));
+    } else {
+      setFiles(files.filter((f) => f.id !== file.id));
+    }
+    setSelectedFiles(selectedFiles.filter((id) => id !== file.id));
+    setContextMenu(null);
+  };
+
+  const handleRename = (file: FileItem) => {
+    if (renameValue.trim()) {
+      setFiles(
+        files.map((f) =>
+          f.id === file.id ? { ...f, name: renameValue.trim() } : f
+        )
+      );
+    }
+    setRenamingId(null);
+    setRenameValue("");
+  };
+
+  const startRename = (file: FileItem) => {
+    setRenamingId(file.id);
+    setRenameValue(file.name);
+    setContextMenu(null);
+  };
+
+  const toggleStar = (file: FileItem) => {
+    setFiles(
+      files.map((f) => (f.id === file.id ? { ...f, starred: !f.starred } : f))
+    );
+    setContextMenu(null);
+  };
+
+  const folderItemCount = (folderId: string) => {
+    return files.filter((f) => f.parentId === folderId).length;
+  };
+
   const storageUsed = 12.55;
   const storageTotal = 15;
   const storagePercentage = (storageUsed / storageTotal) * 100;
@@ -153,8 +295,15 @@ export default function DashboardPage() {
           {sidebarItems.map((item) => (
             <button
               key={item.label}
+              onClick={() => {
+                if (item.label === "My Drive") {
+                  setCurrentFolderId(null);
+                  setSelectedFiles([]);
+                  setSearchQuery("");
+                }
+              }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                item.active
+                item.label === "My Drive" && currentFolderId === null
                   ? "bg-blue-50 text-blue-600 font-medium dark:bg-blue-900/30 dark:text-blue-400"
                   : `${theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"}`
               }`}
@@ -198,6 +347,20 @@ export default function DashboardPage() {
         {/* Header */}
         <header className={`border-b px-6 py-4 ${theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
           <div className="flex items-center gap-4">
+            {currentFolderId && (
+              <button
+                onClick={() => {
+                  const parentFolder = files.find((f) => f.id === currentFolderId);
+                  setCurrentFolderId(parentFolder?.parentId ?? null);
+                  setSelectedFiles([]);
+                }}
+                className={`p-2 rounded-lg transition-colors ${
+                  theme === "dark" ? "bg-slate-700 text-slate-300 hover:bg-slate-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            )}
             <div className="flex-1 relative">
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />
               <input
@@ -218,28 +381,31 @@ export default function DashboardPage() {
             >
               {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              <Plus className="h-5 w-5" />
-              New
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                <Plus className="h-5 w-5" />
+                New
+              </button>
+            </div>
           </div>
 
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 mt-4">
-            {currentPath.map((path, index) => (
-              <div key={index} className="flex items-center gap-2">
-                {index > 0 && <ChevronRight className={`h-4 w-4 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />}
+          <div className="flex items-center gap-1 mt-4 flex-wrap">
+            {breadcrumbPath.map((crumb, index) => (
+              <div key={crumb.id ?? "root"} className="flex items-center">
+                {index > 0 && <ChevronRight className={`h-4 w-4 mx-1 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />}
                 <button
-                  className={`text-sm ${
-                    index === currentPath.length - 1
+                  onClick={() => handleBreadcrumbClick(crumb.id)}
+                  className={`text-sm px-1 py-0.5 rounded transition-colors ${
+                    index === breadcrumbPath.length - 1
                       ? `font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`
-                      : `${theme === "dark" ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-700"}`
+                      : `${theme === "dark" ? "text-slate-400 hover:text-slate-200 hover:bg-slate-700" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"}`
                   }`}
                 >
-                  {path}
+                  {crumb.name}
                 </button>
               </div>
             ))}
@@ -249,6 +415,15 @@ export default function DashboardPage() {
         {/* Toolbar */}
         <div className={`border-b px-6 py-3 flex items-center justify-between ${theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateFolderModal(true)}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <FolderPlus className="h-4 w-4" />
+              New Folder
+            </button>
             <button className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
               theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-100"
             }`}>
@@ -297,7 +472,15 @@ export default function DashboardPage() {
                 <button className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "text-blue-400 hover:bg-blue-800/50" : "text-blue-600 hover:bg-blue-100"}`}>
                   <Share2 className="h-4 w-4" />
                 </button>
-                <button className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "text-blue-400 hover:bg-blue-800/50" : "text-blue-600 hover:bg-blue-100"}`}>
+                <button
+                  onClick={() => {
+                    selectedFiles.forEach((id) => {
+                      const file = files.find((f) => f.id === id);
+                      if (file) handleDelete(file);
+                    });
+                  }}
+                  className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "text-blue-400 hover:bg-blue-800/50" : "text-blue-600 hover:bg-blue-100"}`}
+                >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -310,13 +493,24 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {viewMode === "grid" ? (
+          {currentFiles.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64">
+              <Folder className={`h-16 w-16 mb-4 ${theme === "dark" ? "text-slate-600" : "text-slate-300"}`} />
+              <p className={`text-lg font-medium ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
+                {searchQuery ? "No files found" : "This folder is empty"}
+              </p>
+              <p className={`text-sm mt-1 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`}>
+                {searchQuery ? "Try a different search" : "Drop files here or create a new folder"}
+              </p>
+            </div>
+          ) : viewMode === "grid" ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {sortedFiles.map((file) => (
+              {currentFiles.map((file) => (
                 <div
                   key={file.id}
                   onContextMenu={(e) => handleContextMenu(e, file)}
                   onClick={() => toggleFileSelection(file.id)}
+                  onDoubleClick={() => handleDoubleClick(file)}
                   className={`group relative rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${
                     selectedFiles.includes(file.id)
                       ? "border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800"
@@ -326,7 +520,7 @@ export default function DashboardPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Toggle star
+                      toggleStar(file);
                     }}
                     className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
@@ -341,9 +535,27 @@ export default function DashboardPage() {
                   }`}>
                     {getFileIcon(file)}
                   </div>
-                  <h3 className={`font-medium truncate ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{file.name}</h3>
+                  {renamingId === file.id ? (
+                    <input
+                      type="text"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={() => handleRename(file)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleRename(file);
+                        if (e.key === "Escape") setRenamingId(null);
+                      }}
+                      autoFocus
+                      className={`w-full px-2 py-1 text-sm rounded border ${
+                        theme === "dark" ? "bg-slate-700 border-slate-600 text-white" : "bg-white border-slate-300"
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <h3 className={`font-medium truncate ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{file.name}</h3>
+                  )}
                   <p className={`text-xs mt-1 ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
-                    {file.type === "folder" ? `${Math.floor(Math.random() * 10) + 1} items` : file.size}
+                    {file.type === "folder" ? `${folderItemCount(file.id)} items` : file.size}
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     {file.shared && (
@@ -372,11 +584,12 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${theme === "dark" ? "divide-slate-700" : "divide-slate-200"}`}>
-                  {sortedFiles.map((file) => (
+                  {currentFiles.map((file) => (
                     <tr
                       key={file.id}
                       onContextMenu={(e) => handleContextMenu(e, file)}
                       onClick={() => toggleFileSelection(file.id)}
+                      onDoubleClick={() => handleDoubleClick(file)}
                       className={`cursor-pointer transition-colors ${
                         selectedFiles.includes(file.id)
                           ? `${theme === "dark" ? "bg-blue-900/30" : "bg-blue-50"}`
@@ -395,7 +608,25 @@ export default function DashboardPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{file.name}</span>
+                            {renamingId === file.id ? (
+                              <input
+                                type="text"
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onBlur={() => handleRename(file)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleRename(file);
+                                  if (e.key === "Escape") setRenamingId(null);
+                                }}
+                                autoFocus
+                                className={`px-2 py-1 text-sm rounded border ${
+                                  theme === "dark" ? "bg-slate-700 border-slate-600 text-white" : "bg-white border-slate-300"
+                                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <span className={`font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{file.name}</span>
+                            )}
                             {file.starred && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
                             {file.shared && <Share2 className={`h-3 w-3 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`} />}
                           </div>
@@ -403,7 +634,7 @@ export default function DashboardPage() {
                       </td>
                       <td className={`px-4 py-3 text-sm hidden md:table-cell ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>{file.modified}</td>
                       <td className={`px-4 py-3 text-sm hidden lg:table-cell ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
-                        {file.type === "folder" ? "—" : file.size}
+                        {file.type === "folder" ? `${folderItemCount(file.id)} items` : file.size}
                       </td>
                       <td className="px-4 py-3">
                         <button
@@ -438,11 +669,28 @@ export default function DashboardPage() {
             }`}
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
-            <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
-              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
-            }`}>
-              <FolderPlus className="h-4 w-4" />
-              Open
+            {contextMenu.file.type === "folder" && (
+              <button
+                onClick={() => {
+                  handleDoubleClick(contextMenu.file);
+                  setContextMenu(null);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                  theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <FolderPlus className="h-4 w-4" />
+                Open
+              </button>
+            )}
+            <button
+              onClick={() => toggleStar(contextMenu.file)}
+              className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              <Star className={`h-4 w-4 ${contextMenu.file.starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
+              {contextMenu.file.starred ? "Unstar" : "Star"}
             </button>
             <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
               theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
@@ -456,9 +704,12 @@ export default function DashboardPage() {
               <Download className="h-4 w-4" />
               Download
             </button>
-            <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
-              theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
-            }`}>
+            <button
+              onClick={() => startRename(contextMenu.file)}
+              className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
               <Pencil className="h-4 w-4" />
               Rename
             </button>
@@ -469,7 +720,10 @@ export default function DashboardPage() {
               Details
             </button>
             <div className={`border-t my-1 ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`} />
-            <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            <button
+              onClick={() => handleDelete(contextMenu.file)}
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
               <Trash2 className="h-4 w-4" />
               Delete
             </button>
@@ -516,6 +770,67 @@ export default function DashboardPage() {
                 </button>
                 <button className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
                   Upload
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Folder Modal */}
+      {showCreateFolderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className={`rounded-2xl shadow-xl w-full max-w-sm mx-4 overflow-hidden ${
+            theme === "dark" ? "bg-slate-800" : "bg-white"
+          }`}>
+            <div className={`flex items-center justify-between px-6 py-4 border-b ${
+              theme === "dark" ? "border-slate-700" : "border-slate-200"
+            }`}>
+              <h2 className={`text-lg font-semibold ${theme === "dark" ? "text-white" : "text-slate-900"}`}>New Folder</h2>
+              <button
+                onClick={() => {
+                  setShowCreateFolderModal(false);
+                  setNewFolderName("");
+                }}
+                className={`p-1 rounded-lg transition-colors ${
+                  theme === "dark" ? "text-slate-400 hover:text-slate-200 hover:bg-slate-700" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateFolder();
+                }}
+                autoFocus
+                placeholder="Folder name"
+                className={`w-full px-4 py-2.5 rounded-lg border ${
+                  theme === "dark" ? "bg-slate-700 border-slate-600 text-white placeholder-slate-400" : "border-slate-300"
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              />
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCreateFolderModal(false);
+                    setNewFolderName("");
+                  }}
+                  className={`flex-1 px-4 py-2.5 border rounded-lg font-medium transition-colors ${
+                    theme === "dark" ? "border-slate-600 text-slate-300 hover:bg-slate-700" : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateFolder}
+                  disabled={!newFolderName.trim()}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Create
                 </button>
               </div>
             </div>
