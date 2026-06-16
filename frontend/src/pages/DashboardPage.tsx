@@ -32,6 +32,10 @@ import {
   ArrowLeft,
   Check,
   RotateCcw,
+  User,
+  Settings,
+  LogOut,
+  HelpCircle,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../hooks/useRedux";
 import { toggleTheme } from "../store/slices/themeSlice";
@@ -122,8 +126,18 @@ export default function DashboardPage() {
   const [isDraggingOverEmpty, setIsDraggingOverEmpty] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Mock user data
+  const user = {
+    name: "John Doe",
+    email: "john.doe@example.com",
+    avatar: null as string | null,
+    initials: "JD",
+  };
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -133,6 +147,9 @@ export default function DashboardPage() {
       }
       if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
         setShowFilterDropdown(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -601,14 +618,89 @@ export default function DashboardPage() {
             >
               {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
-            <div className="relative">
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              <Plus className="h-5 w-5" />
+              New
+            </button>
+            {/* User Profile */}
+            <div className="relative" ref={userMenuRef}>
               <button
-                onClick={() => setShowUploadModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                  showUserMenu
+                    ? theme === "dark" ? "bg-slate-700" : "bg-slate-100"
+                    : theme === "dark" ? "hover:bg-slate-700" : "hover:bg-slate-100"
+                }`}
               >
-                <Plus className="h-5 w-5" />
-                New
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <span className="text-sm font-medium text-white">{user.initials}</span>
+                  </div>
+                )}
+                <div className="hidden md:block text-left">
+                  <p className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{user.name}</p>
+                  <p className={`text-xs ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>{user.email}</p>
+                </div>
+                <ChevronDown className={`h-4 w-4 ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`} />
               </button>
+              {showUserMenu && (
+                <div className={`absolute right-0 top-full mt-2 w-64 rounded-xl shadow-lg border py-2 z-50 ${
+                  theme === "dark" ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+                }`}>
+                  <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`}>
+                    <div className="flex items-center gap-3">
+                      {user.avatar ? (
+                        <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                          <span className="text-sm font-medium text-white">{user.initials}</span>
+                        </div>
+                      )}
+                      <div>
+                        <p className={`font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{user.name}</p>
+                        <p className={`text-sm ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>{user.email}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="py-1">
+                    <button className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                      theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                    }`}>
+                      <User className="h-4 w-4" />
+                      My Account
+                    </button>
+                    <button className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                      theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                    }`}>
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </button>
+                    <button className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                      theme === "dark" ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"
+                    }`}>
+                      <HelpCircle className="h-4 w-4" />
+                      Help & Support
+                    </button>
+                  </div>
+                  <div className={`border-t ${theme === "dark" ? "border-slate-700" : "border-slate-200"}`}>
+                    <button
+                      onClick={() => {
+                        // Handle logout
+                        window.location.href = "/login";
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
