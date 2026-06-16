@@ -117,6 +117,9 @@ export default function DashboardPage() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileItem } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [draggedItem, setDraggedItem] = useState<FileItem | null>(null);
+  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const [isDraggingOverEmpty, setIsDraggingOverEmpty] = useState(false);
 
   // Build breadcrumb path
   const breadcrumbPath = useMemo(() => {
@@ -274,6 +277,127 @@ export default function DashboardPage() {
 
   const folderItemCount = (folderId: string) => {
     return files.filter((f) => f.parentId === folderId).length;
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, file: FileItem) => {
+    e.stopPropagation();
+    setDraggedItem(file);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", file.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverFolder(null);
+    setIsDraggingOverEmpty(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent, folderId: string | null = null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    
+    if (folderId) {
+      setDragOverFolder(folderId);
+    } else {
+      setIsDraggingOverEmpty(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverFolder(null);
+    setIsDraggingOverEmpty(false);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetFolderId: string | null = null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedItem) return;
+    
+    // Don't drop folder into itself
+    if (draggedItem.type === "folder" && draggedItem.id === targetFolderId) {
+      setDraggedItem(null);
+      setDragOverFolder(null);
+      setIsDraggingOverEmpty(false);
+      return;
+    }
+    
+    // Check if dropping folder into its own child (prevent circular reference)
+    if (draggedItem.type === "folder") {
+      let checkId = targetFolderId;
+      while (checkId) {
+        if (checkId === draggedItem.id) {
+          setDraggedItem(null);
+          setDragOverFolder(null);
+          setIsDraggingOverEmpty(false);
+          return;
+        }
+        const parent = files.find((f) => f.id === checkId);
+        checkId = parent?.parentId ?? null;
+      }
+    }
+    
+    // Move the item
+    setFiles(
+      files.map((f) =>
+        f.id === draggedItem.id ? { ...f, parentId: targetFolderId } : f
+      )
+    );
+    
+    setDraggedItem(null);
+    setDragOverFolder(null);
+    setIsDraggingOverEmpty(false);
+  };
+
+  const handleMultipleDrop = (e: React.DragEvent, targetFolderId: string | null = null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const itemsToMove = selectedFiles.length > 0 
+      ? files.filter((f) => selectedFiles.includes(f.id))
+      : draggedItem 
+        ? [draggedItem] 
+        : [];
+    
+    if (itemsToMove.length === 0) return;
+    
+    // Check for circular references for folders
+    for (const item of itemsToMove) {
+      if (item.type === "folder" && item.id === targetFolderId) continue;
+      
+      if (item.type === "folder") {
+        let checkId = targetFolderId;
+        while (checkId) {
+          if (checkId === item.id) {
+            setDraggedItem(null);
+            setDragOverFolder(null);
+            setIsDraggingOverEmpty(false);
+            return;
+          }
+          const parent = files.find((f) => f.id === checkId);
+          checkId = parent?.parentId ?? null;
+        }
+      }
+    }
+    
+    // Move items
+    setFiles(
+      files.map((f) => {
+        if (itemsToMove.some((item) => item.id === f.id)) {
+          return { ...f, parentId: targetFolderId };
+        }
+        return f;
+      })
+    );
+    
+    setSelectedFiles([]);
+    setDraggedItem(null);
+    setDragOverFolder(null);
+    setIsDraggingOverEmpty(false);
   };
 
   const storageUsed = 12.55;
@@ -459,7 +583,18 @@ export default function DashboardPage() {
         </div>
 
         {/* File Explorer */}
-        <div className="flex-1 overflow-auto p-6">
+        <div 
+          className={`flex-1 overflow-auto p-6 transition-colors ${
+            isDraggingOverEmpty 
+              ? theme === "dark" 
+                ? "bg-blue-900/30 ring-2 ring-inset ring-blue-500" 
+                : "bg-blue-50 ring-2 ring-inset ring-blue-500"
+              : ""
+          }`}
+          onDragOver={(e) => handleDragOver(e)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleMultipleDrop(e, currentFolderId)}
+        >
           {selectedFiles.length > 0 && (
             <div className={`mb-4 flex items-center gap-4 rounded-lg px-4 py-3 ${
               theme === "dark" ? "bg-blue-900/30" : "bg-blue-50"
@@ -494,7 +629,20 @@ export default function DashboardPage() {
           )}
 
           {currentFiles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64">
+            <div 
+              className={`flex flex-col items-center justify-center h-64 rounded-xl border-2 border-dashed transition-colors ${
+                isDraggingOverEmpty 
+                  ? theme === "dark" 
+                    ? "border-blue-500 bg-blue-900/20" 
+                    : "border-blue-500 bg-blue-50"
+                  : theme === "dark" 
+                    ? "border-slate-700" 
+                    : "border-slate-300"
+              }`}
+              onDragOver={(e) => handleDragOver(e)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleMultipleDrop(e, currentFolderId)}
+            >
               <Folder className={`h-16 w-16 mb-4 ${theme === "dark" ? "text-slate-600" : "text-slate-300"}`} />
               <p className={`text-lg font-medium ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
                 {searchQuery ? "No files found" : "This folder is empty"}
@@ -508,13 +656,25 @@ export default function DashboardPage() {
               {currentFiles.map((file) => (
                 <div
                   key={file.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, file)}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={(e) => file.type === "folder" ? handleDragOver(e, file.id) : undefined}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => file.type === "folder" ? handleMultipleDrop(e, file.id) : undefined}
                   onContextMenu={(e) => handleContextMenu(e, file)}
                   onClick={() => toggleFileSelection(file.id)}
                   onDoubleClick={() => handleDoubleClick(file)}
-                  className={`group relative rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${
-                    selectedFiles.includes(file.id)
-                      ? "border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800"
-                      : `${theme === "dark" ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`
+                  className={`group relative rounded-xl border p-4 cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
+                    draggedItem?.id === file.id ? "opacity-50 scale-95" : ""
+                  } ${
+                    dragOverFolder === file.id
+                      ? theme === "dark"
+                        ? "border-blue-500 ring-2 ring-blue-500/50 bg-blue-900/30"
+                        : "border-blue-500 ring-2 ring-blue-500/50 bg-blue-50"
+                      : selectedFiles.includes(file.id)
+                        ? "border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800"
+                        : `${theme === "dark" ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`
                   }`}
                 >
                   <button
@@ -587,13 +747,25 @@ export default function DashboardPage() {
                   {currentFiles.map((file) => (
                     <tr
                       key={file.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, file)}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(e) => file.type === "folder" ? handleDragOver(e, file.id) : undefined}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => file.type === "folder" ? handleMultipleDrop(e, file.id) : undefined}
                       onContextMenu={(e) => handleContextMenu(e, file)}
                       onClick={() => toggleFileSelection(file.id)}
                       onDoubleClick={() => handleDoubleClick(file)}
-                      className={`cursor-pointer transition-colors ${
-                        selectedFiles.includes(file.id)
-                          ? `${theme === "dark" ? "bg-blue-900/30" : "bg-blue-50"}`
-                          : `${theme === "dark" ? "hover:bg-slate-700/50" : "hover:bg-slate-50"}`
+                      className={`cursor-grab active:cursor-grabbing transition-colors ${
+                        draggedItem?.id === file.id ? "opacity-50" : ""
+                      } ${
+                        dragOverFolder === file.id
+                          ? theme === "dark"
+                            ? "bg-blue-900/30 ring-2 ring-inset ring-blue-500"
+                            : "bg-blue-50 ring-2 ring-inset ring-blue-500"
+                          : selectedFiles.includes(file.id)
+                            ? `${theme === "dark" ? "bg-blue-900/30" : "bg-blue-50"}`
+                            : `${theme === "dark" ? "hover:bg-slate-700/50" : "hover:bg-slate-50"}`
                       }`}
                     >
                       <td className="px-4 py-3">
